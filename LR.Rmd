@@ -8,11 +8,17 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# Introduction
 
 FIXME?
 ```{r}
 set.seed(42)
 ```
+
+FIXME
+http://www.bbc.co.uk/news/live/business-38452154
+http://www.huffingtonpost.co.uk/entry/top-economist-slams-entirely-fictional-brexit-report_uk_586b747ee4b0d590e44f482f?
+https://www.theguardian.com/commentisfree/2017/jan/03/brexit-create-4000000-jobs-economist-change-britain?CMP=twt_gu
 
 I was intrigued by a
 [tweet](https://twitter.com/PHammondMP/status/809628170471116800) by
@@ -30,13 +36,11 @@ feature has on the game's consumers.
 One has to be slightly careful with trade statistics as they can just
 be goods or goods and services. It's amusing to note that when I
 provide software and analyses to US organisations, I am included in
-the services exports from the UK to the US. Quarterly trade statistics
-for UK goods are available [here](FIXME). Let's analyse these first
+the services exports from the UK to the US. Let's analyse goods first
 before moving on to goods and services.
 
 First let's get hold of the quarterly data from the UK [Office of
 National Statistics](https://www.ons.gov.uk).
-
 
 ```{r}
 ukstats <- "https://www.ons.gov.uk"
@@ -44,11 +48,22 @@ bop <- "economy/nationalaccounts/balanceofpayments"
 ds <- "datasets/tradeingoodsmretsallbopeu2013timeseriesspreadsheet/current/mret.csv"
 
 mycsv <- read.csv(paste(ukstats,"file?uri=",bop,ds,sep="/"),stringsAsFactors=FALSE)
+```
+
+Now we can find the columns that refer to Korea.
+
+```{r}
 ns <- which(grepl("Korea", names(mycsv)))
+length(ns)
 names(mycsv[ns[1]])
 names(mycsv[ns[2]])
 names(mycsv[ns[3]])
+```
 
+Now we can pull out the relevant information and create a data frame
+of it.
+
+```{r}
 korean <- mycsv[grepl("Korea", names(mycsv))]
 imports <- korean[grepl("Imports", names(korean))]
 exports <- korean[grepl("Exports", names(korean))]
@@ -62,11 +77,16 @@ colnames(df) <- c("Title", "Imports", "Exports", "Balance")
 
 startQ <- which(grepl("1998 Q1",df$Title))
 endQ <- which(grepl("2016 Q3",df$Title))
-df <- df[startQ:endQ,]
+dfQ <- df[startQ:endQ,]
+```
 
+
+We can now plot the data.
+
+```{r}
 library(zoo)
-tab <- data.frame(kr=as.numeric(df$Exports),
-                  krLabs=as.numeric(as.Date(as.yearqtr(df$Title,format='%Y Q%q'))))
+tab <- data.frame(kr=as.numeric(dfQ$Exports),
+                  krLabs=as.numeric(as.Date(as.yearqtr(dfQ$Title,format='%Y Q%q'))))
 
 library(ggplot2)
 ggplot(tab, aes(x=as.Date(tab$krLabs), y=tab$kr)) + geom_line() +
@@ -77,218 +97,168 @@ ggplot(tab, aes(x=as.Date(tab$krLabs), y=tab$kr)) + geom_line() +
     ylab("Value (£m)")
 ```
 
+For good measure let's plot the annual data.
 
 ```{r}
-kr <- c(155,
-        183,
-        147,
-        180,
-        195,
-        229,
-        245,
-        275,
-        350,
-        351,
-        318,
-        317,
-        305,
-        324,
-        311,
-        314,
-        320,
-        438,
-        365,
-        340,
-        423,
-        349,
-        324,
-        369,
-        344,
-        342,
-        381,
-        394,
-        374,
-        441,
-        427,
-        410,
-        378,
-        430,
-        471,
-        475,
-        426,
-        493,
-        466,
-        476,
-        531,
-        830,
-        651,
-        548,
-        438,
-        520,
-        555,
-        659,
-        541,
-        634,
-        637,
-        538,
-        575,
-        555,
-        588,
-        971,
-        1097,
-        1481,
-        1134,
-        1231,
-        1464,
-        959,
-        782,
-        1967,
-        1684,
-        1670,
-        1183,
-        1068,
-        1346,
-        1238,
-        1179,
-        1153,
-        1009,
-        1040,
-        973)
+startY <- grep("^1998$",df$Title)
+endY <- grep("^2015$",df$Title)
+dfYear <- df[startY:endY,]
+
+tabY <- data.frame(kr=as.numeric(dfYear$Exports),
+                   krLabs=as.numeric(dfYear$Title))
+
+ggplot(tabY, aes(x=tabY$krLabs, y=tabY$kr)) + geom_line() +
+    theme(legend.position="bottom") +
+    ggtitle("UK Export to South Korea (Annual)") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    xlab("Date") +
+    ylab("Value (£m)")
 ```
 
-```{r}
-krLabs <- c("1998 Q1",
-            "1998 Q2",
-            "1998 Q3",
-            "1998 Q4",
-            "1999 Q1",
-            "1999 Q2",
-            "1999 Q3",
-            "1999 Q4",
-            "2000 Q1",
-            "2000 Q2",
-            "2000 Q3",
-            "2000 Q4",
-            "2001 Q1",
-            "2001 Q2",
-            "2001 Q3",
-            "2001 Q4",
-            "2002 Q1",
-            "2002 Q2",
-            "2002 Q3",
-            "2002 Q4",
-            "2003 Q1",
-            "2003 Q2",
-            "2003 Q3",
-            "2003 Q4",
-            "2004 Q1",
-            "2004 Q2",
-            "2004 Q3",
-            "2004 Q4",
-            "2005 Q1",
-            "2005 Q2",
-            "2005 Q3",
-            "2005 Q4",
-            "2006 Q1",
-            "2006 Q2",
-            "2006 Q3",
-            "2006 Q4",
-            "2007 Q1",
-            "2007 Q2",
-            "2007 Q3",
-            "2007 Q4",
-            "2008 Q1",
-            "2008 Q2",
-            "2008 Q3",
-            "2008 Q4",
-            "2009 Q1",
-            "2009 Q2",
-            "2009 Q3",
-            "2009 Q4",
-            "2010 Q1",
-            "2010 Q2",
-            "2010 Q3",
-            "2010 Q4",
-            "2011 Q1",
-            "2011 Q2",
-            "2011 Q3",
-            "2011 Q4",
-            "2012 Q1",
-            "2012 Q2",
-            "2012 Q3",
-            "2012 Q4",
-            "2013 Q1",
-            "2013 Q2",
-            "2013 Q3",
-            "2013 Q4",
-            "2014 Q1",
-            "2014 Q2",
-            "2014 Q3",
-            "2014 Q4",
-            "2015 Q1",
-            "2015 Q2",
-            "2015 Q3",
-            "2015 Q4",
-            "2016 Q1",
-            "2016 Q2",
-            "2016 Q3")
+And the monthly data.
+
+```{r chunkname, fig.align='center'}
+startM <- grep("1998 JAN",df$Title)
+endM <- grep("2016 OCT",df$Title)
+dfMonth <- df[startM:endM,]
+
+tabM <- data.frame(kr=as.numeric(dfMonth$Exports),
+                   krLabs=as.numeric(as.Date(as.yearmon(dfMonth$Title,format='%Y %B'))))
+
+ggplot(tabM, aes(x=as.Date(tabM$krLabs), y=tabM$kr)) + geom_line() +
+    theme(legend.position="bottom") +
+    ggtitle("UK Export to South Korea (Monthly)") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    xlab("Date") +
+    ylab("Value (£m)")
 ```
 
-```{r}
-library(zoo)
-tab <- data.frame(kr=kr,krLabs=as.numeric(as.Date(as.yearqtr(krLabs,format='%Y Q%q'))))
-g <- ggplot(tab, aes(x=krLabs, y=kr)) + geom_line()
-ggsave(plot=g,filename="figure/Exports.png",width=5,height=5)
-```
+It looks like some change took place in 2011 but nothing to suggest
+either that "export have doubled over the last year" or that South
+Korea is "our second fastest growing partner". That some sort of
+change did happen is further supported by the fact a [Free Trade
+Agreement](http://trade.ec.europa.eu/doclib/press/index.cfm?id=1521)
+between the EU and Korea was put in place in 2011.
 
-In this document, I'll review a Bayesian approach to detect a single changepoint in a timeseries. I'll implement a model using [stan](http://mc-stan.org) and show how to interpret its output in R using the [rstan](http://mc-stan.org/interfaces/rstan) package. The code for this article can be found at [https://github.com/gmodena/bayesian-changepoint](https://github.com/gmodena/bayesian-changepoint).
+But was there really a change? And what sort of change was it?
+Sometimes it's easy to imagine patterns where
+there are none.
 
-## The frequentist approach
+<center>![](http://imgs.xkcd.com/comics/linear_regression.png)</center>
 
-Let $D = {d_1, ..., d_n}$ be a time series with $n$ *normally distributed* data points. To determine whether a change of parameters $\mu$ and $\sigma$ at point $\tau$ is significant, one possible approach would be to perform a likelihood test. In this setting we run a hypothesis test where the null hypothesis $H_0$ is *there is no changepoint in $D$*, and the alternate hypothesis $H_1$ is *there is at most one changepoint at $\tau \in D$*[^1].
-
-More formally $H_0$ says that $\forall n$  we have $d_n \sim  \mathcal{N}(\mu, \sigma)$ 
-
-Where $H_1$ says that  $\forall n$
-
-$$d_n \sim \begin{cases} \mathcal{N}(\mu_1, \sigma_1) & \mbox{if } n  \lt \tau \\ \mathcal{N}(\mu_2, \sigma_2), & \mbox{if } n  \geq \tau \end{cases}$$
-
-Under $H_0$, the log-likelihood of $D$ is $log P(D|\mu, \sigma)$. Under $H_1$ the log-likelihood of $D$ is $ll_\tau = log P(D_{1..{\tau-1}} | \mu_1, \sigma_1) + log P(D_{\tau..n} | \mu_2, \sigma_2)$.
-
-We then perform a maximum likelihood estimation to find the value $\tau$ that maximizes $ll_{\tau}$, which we use to construct a test statistic $\lambda = 2 [ max_{\tau} ll_{\tau} - log P(D|\mu, \sigma)]$.
-
-A changepoint has happened iff $\lambda > c$, for a given $c$. What is a good value of $c$?. As it turns out, *the appropriate value for this parameter c is still an open research question with several authors devising p values and other information criteria under different types of changes* [changepoint: An R Package for Changepoint Analysis](https://www.jstatsoft.org/article/view/v058i03). 
-
-## Bayesian changepoint detection
-
-In the Bayesian setting, we assume that the data $D$ is generated by some probability distribution parametrized by $\Theta$. Our goal is to model $P(\Theta|D)$.
- 
-From Bayes rule we know that $P(\Theta|D) = \frac{P(D|\Theta)P(\Theta)}{P(D)}$. $P(\Theta|D)$ is called the *posterior* distribution, $P(D|\Theta)$ is the *likelihood* and $P(\Theta)$ is the the *prior*. The core of Bayesin statistics can be summarized as calculating $posterior \propto likelihood \cdot prior$.
-
-A Bayesian data analysis involves the following steps:
-
- 1. define a prior distribution that incorporates your beliefs about the data
- 2. acquire some data
- 3. use Bayes rule to update the prior distribution given the newly acquired data and calculate the posterior distribution
- 4. analyse the posterior 
-
-A Bayesian model to detect a single changepoint $\tau$, modeled as a *uniformly distributed* discrete latent parameter, will look like this:
-
-$$ \tau \sim Uniform(1, N) $$
-$$ \mu_1 \sim \mathcal{N}(\mu_{\mu_1}, \sigma_{\mu_1}) $$
-$$ \sigma_1 \sim \mathcal{N}(\mu_{\sigma_1}, \sigma_{\sigma_1})$$
-$$ \mu_2 \sim \mathcal{N}(\mu_{\mu_2}, \sigma_{\mu_2}) $$
-$$ \sigma_2 \sim \mathcal{N}(\mu_{\sigma_2}, \sigma_{\sigma_2})$$
-$$ d_n \sim \begin{cases} \mathcal{N}(\mu_1, \sigma_1) & \mbox{if } n  \lt \tau \\ \mathcal{N}(\mu_2, \sigma_2), & \mbox{if } n  \geq \tau \end{cases}$$
+With this warning in mind let us see if we can get a better feel from
+the numbers as to what happened.
 
 
-In many practical applications, a closed form solution for the posterior is hard to derive (eg. the integral is hard, or impossible to calculate), and approximation methods such as  [Markov Chain Monte Carlo](https://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo) (MCMC) are required.
+# The Model
 
-In the reminder of this document we'll code this model as a `stan` program, and fit the model with  MCMC to calculate the posterior probability $P(\tau, \mu_1, \sigma_1, \mu_2, \sigma_2 |D)$.
+Let us assume that the data for exports are approximated by a linear
+function of time but that there is a change in the slope and the
+offset at some point during observation.
 
-### Stan
+$$
+\begin{aligned}
+\tau &\sim {\mathrm{Uniform}}(1, N) \\
+\mu_1 &\sim \mathcal{N}(\mu_{\mu_1}, \sigma_{\mu_1}) \\
+\gamma_1 &\sim \mathcal{N}(\mu_{\gamma_1}, \sigma_{\gamma_1}) \\
+\sigma_1 &\sim \mathcal{N}(\mu_{\sigma_1}, \sigma_{\sigma_1}) \\
+\mu_2 &\sim \mathcal{N}(\mu_{\mu_2}, \sigma_{\mu_2}) \\
+\gamma_2 &\sim \mathcal{N}(\mu_{\gamma_2}, \sigma_{\gamma_2}) \\
+\sigma_2 &\sim \mathcal{N}(\mu_{\sigma_2}, \sigma_{\sigma_2}) \\
+y_i &\sim \begin{cases} \mathcal{N}(\mu_1 x_i + \gamma_1, \sigma_1) & \mbox{if } i  \lt \tau \\ \mathcal{N}(\mu_2 x_i + \gamma_2, \sigma_2), & \mbox{if } i  \geq \tau \end{cases}
+\end{aligned}
+$$
+
+Since we are going to use [stan](http://mc-stan.org) to infer the
+parameters for this model and stan cannot handle discrete parameters,
+we need to marginalize out this (discrete) parameter. I hope to do the
+same analysis with [LibBi](http://libbi.org) which seems more suited
+to time series analysis and which I believe will not require such a
+step.
+
+Setting $D=\{y_i\}_{i = 1}^N$ we can calculate the likelihood
+
+$$
+\begin{aligned}
+p(D \,|\, \mu_1, \gamma_1, \sigma_1, \mu_2, \gamma_2, \sigma_2)
+&= \sum_{n=1}^N p(\tau, D \,|\, \mu_1, \gamma_1, \sigma_1, \mu_2, \gamma_2, \sigma_2) \\
+&= \sum_{\tau=1}^N p(\tau) p(D \,|\, \tau, \mu_1, \sigma_1, \mu_2, \sigma_2) \\
+&=\sum_{\tau=1}^N p(\tau) \prod_{i=1}^N p(y_i \,|\, \tau, \mu_1, \gamma_1, \sigma_1, \mu_2, \gamma_2, \sigma_2)
+\end{aligned}
+$$
+
+stan operates on the log scale and thus requires the log likelihood
+
+$$
+\log p(D \,|\, \mu_1, \gamma_1, \sigma_1, \mu_2, \gamma_2, \sigma_2) =
+\mathrm{log\_sum\_exp}_{\tau=1}^T
+\big(
+  \log \mathcal{U}(\tau \, | \, 1, T) \\
+  + \sum_{i=1}^T \log \mathcal{N}(y_i \, | \, \nu_i, \rho_i)
+  \big)
+$$
+
+where
+
+$$
+\begin{aligned}
+  \nu_i &=
+  \begin{cases}
+    \mu_1 x_i + \gamma_1 & \mbox{if } i < \tau \\
+    \mu_2 x_i + \gamma_2 & \mbox{if } i  \geq \tau
+  \end{cases} \\
+  \rho_i &=
+  \begin{cases}
+    \sigma_1 & \mbox{if } i < \tau \\
+    \sigma_2 & \mbox{if } i  \geq \tau
+  \end{cases}
+\end{aligned}
+$$
+
+and where the log sum of exponents function is defined by
+
+$$
+\mathrm{\log\_sum\_exp}_{n=1}^N \, \alpha_n
+=
+\log \sum_{n=1}^N \exp(\alpha_n).
+$$
+
+The log sum of exponents function allows the model to be coded
+directly in Stan using the built-in function \code{log\_sum\_exp},
+which provides both arithmetic stability and efficiency for mixture
+model calculations.
+
+## Stan
 
 [stan](http://mc-stan.org) is a C++ library that comes with a domain specific modelling language very similar to statistical notation. Stan can help us to perform the Bayesian analysis steps, including MCMC inference (and more advanced techniques). The model that I will illustrate in the remainder of this document, is an adaptation of the [Coal Mine Distater](https://pymc-devs.github.io/pymc/tutorial.html) example from [Stan's manual](https://github.com/stan-dev/stan/releases/download/v2.12.0/stan-reference-2.12.0.pdf) Section 12. The full code of this model can be found at [https://gist.github.com/gmodena/0f316232aa2e9f7b6fc76b49f14bfb31](https://gist.github.com/gmodena/0f316232aa2e9f7b6fc76b49f14bfb31).
+
+
+Here's the model in stan.
+
+~~~~{.CPP include="lr-changepoint-ng.stan"}
+~~~~
+
+```{r}
+NM <- nrow(tabM)
+KM <- ncol(tabM)
+
+yM <- tabM$kr
+XM <- data.frame(tabM,rep(1,NM))[,2:3]
+
+fitM <- stan(
+    file = "lr-changepoint-ng.stan",
+    data = list(x = XM$krLabs, y = yM, N = length(yM)),
+    chains = 4,
+    warmup = 1000,
+    iter = 10000,
+    cores = 4,
+    refresh = 500,
+    seed=42
+)
+
+histData <- hist(extract(fitM)$tau,plot=FALSE,breaks=c(seq(1,length(yM),1)))
+histData$counts
+```
 
 A stan program is structured in blocks of code. Each block defines: 
 1. the data
