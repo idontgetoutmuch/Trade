@@ -10,17 +10,6 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Introduction
 
-FIXME?
-```{r}
-set.seed(42)
-```
-
-FIXME
-https://www.theguardian.com/politics/2015/nov/05/british-exports-boomed-under-eu-trade-deals-campaigners
-http://www.bbc.co.uk/news/live/business-38452154
-http://www.huffingtonpost.co.uk/entry/top-economist-slams-entirely-fictional-brexit-report_uk_586b747ee4b0d590e44f482f?
-https://www.theguardian.com/commentisfree/2017/jan/03/brexit-create-4000000-jobs-economist-change-britain?CMP=twt_gu
-
 I was intrigued by a
 [tweet](https://twitter.com/PHammondMP/status/809628170471116800) by
 the UK Chancellor of the Exchequer stating "exports have doubled over
@@ -39,6 +28,8 @@ be goods or goods and services. It's amusing to note that when I
 provide software and analyses to US organisations, I am included in
 the services exports from the UK to the US. Let's analyse goods first
 before moving on to goods and services.
+
+# Getting the Data
 
 First let's get hold of the quarterly data from the UK [Office of
 National Statistics](https://www.ons.gov.uk).
@@ -81,10 +72,9 @@ endQ <- which(grepl("2016 Q3",df$Title))
 dfQ <- df[startQ:endQ,]
 ```
 
-
 We can now plot the data.
 
-```{r}
+```{r chunkname0, fig.align='center'}
 library(zoo)
 tab <- data.frame(kr=as.numeric(dfQ$Exports),
                   krLabs=as.numeric(as.Date(as.yearqtr(dfQ$Title,format='%Y Q%q'))))
@@ -100,7 +90,7 @@ ggplot(tab, aes(x=as.Date(tab$krLabs), y=tab$kr)) + geom_line() +
 
 For good measure let's plot the annual data.
 
-```{r}
+```{r chunkname1, fig.align='center'}
 startY <- grep("^1998$",df$Title)
 endY <- grep("^2015$",df$Title)
 dfYear <- df[startY:endY,]
@@ -118,7 +108,7 @@ ggplot(tabY, aes(x=tabY$krLabs, y=tabY$kr)) + geom_line() +
 
 And the monthly data.
 
-```{r chunkname, fig.align='center'}
+```{r chunkname2, fig.align='center'}
 startM <- grep("1998 JAN",df$Title)
 endM <- grep("2016 OCT",df$Title)
 dfMonth <- df[startM:endM,]
@@ -149,7 +139,6 @@ there are none.
 
 With this warning in mind let us see if we can get a better feel from
 the numbers as to what happened.
-
 
 # The Model
 
@@ -231,8 +220,6 @@ model calculations.
 
 ## Stan
 
-[stan](http://mc-stan.org) is a C++ library that comes with a domain specific modelling language very similar to statistical notation. Stan can help us to perform the Bayesian analysis steps, including MCMC inference (and more advanced techniques). The model that I will illustrate in the remainder of this document, is an adaptation of the [Coal Mine Distater](https://pymc-devs.github.io/pymc/tutorial.html) example from [Stan's manual](https://github.com/stan-dev/stan/releases/download/v2.12.0/stan-reference-2.12.0.pdf) Section 12. The full code of this model can be found at [https://gist.github.com/gmodena/0f316232aa2e9f7b6fc76b49f14bfb31](https://gist.github.com/gmodena/0f316232aa2e9f7b6fc76b49f14bfb31).
-
 Here's the model in stan. Sadly I haven't found a good way of divvying
 up `.stan` files in a `.Rmd` file so that it still compiles.
 
@@ -268,8 +255,6 @@ fitM <- stan(
 )
 ```
 
-$`r pi`$ is an expression.
-
 Looking at the results below we see a multi-modal distribution so a
 mean is not of much use.
 
@@ -281,7 +266,7 @@ histData$counts
 We can get a pictorial representation of the maxima so that the
 multi-modality is even clearer.
 
-```{r}
+```{r chunkname3, fig.align='center'}
 min_indexes = which(diff(  sign(diff( c(0,histData$counts,0)))) == 2)
 max_indexes = which(diff(  sign(diff( c(0,histData$counts,0)))) == -2)
 modeData = data.frame(x=1:length(histData$counts),y=histData$counts)
@@ -305,30 +290,71 @@ which translates to $`r dfMonth$Title[max_locs$x[3]]`$ corresponds
 roughly to the EU / Korea trade agreement.
 
 Let us assume that there really was a material difference in trade at
-this latter point.
+this latter point. We can fit a linear regression before this point
+and one after this point.
 
-### Data
+Here's the stan
 
-### Discrete sampling
+~~~~{.CPP include="LR.stan"}
+~~~~
 
-The `generated quantities` block allows for postprocessing. We can use it to draw a discrete sampling of `tau` at each iteration using the `categorical_rng` probability distribution. At each iteration we draw a value of `tau`, and later on, we'll look at the histogram of draws to determine the most likely changepoint as the most frequent `tau`.
-```{markdown}
-generated quantities {
-    int<lower=1,upper=N> tau;
-    // K simplex are a data type in Stan
-    simplex[N] sp;
-    sp = softmax(log_p);
-    tau = categorical_rng(sp);
-}
+And here's the R to fit the before and after data. We fit the model,
+pull out the parameters for the regression and pull out the covariates
+
+
+```{r}
+N <- length(yM)
+M <- max_locs$x[3]
+
+fite <- stan(file = 'LR.stan',
+             data = list(N = M, K = ncol(XM), y = yM[1:M], X = XM[1:M,]),
+             pars=c("beta", "sigma"),
+             chains=3,
+             cores=3,
+             iter=3000,
+             warmup=1000,
+             refresh=-1)
+
+se <- extract(fite, pars = c("beta", "sigma"), permuted=TRUE)
+estCovParamsE <- colMeans(se$beta)
+
+fitl <- stan(file = 'LR.stan',
+             data = list(N = N-M, K = ncol(XM), y = yM[(M+1):N], X = XM[(M+1):N,]),
+             pars=c("beta", "sigma"),
+             chains=3,
+             cores=3,
+             iter=3000,
+             warmup=1000,
+             refresh=-1)
+
+sl <- extract(fitl, pars = c("beta", "sigma"), permuted=TRUE)
+estCovParamsL <- colMeans(sl$beta)
 ```
 
-The `softmax` transform maps `log_p` to a [K-simplex](https://en.wikipedia.org/wiki/Simplex#The_standard_simplex), which is the parameter type expected by `categorical_rng`. The label will be the index of `log_p`.
+Make predictions
 
-## Conclusion
-In this document I showed a simple yet powerful bayesian model for detecting a single changepoint in a timeseries. The advantages over the frequentist approach are twofold. On the one hand, the Bayesian model gives a distribution of changepoints and not a single point estimate. This lets us reason about how credible the model output is. On the other hand, we don't need to hard-code threshold values for a test statistic, but rather embed our prior knowledge about the data to "tune" the model.
+```{r}
+linRegPredsE <- data.matrix(XM) %*% estCovParamsE
+linRegPredsL <- data.matrix(XM) %*% estCovParamsL
+```
 
-It's not all roses, though. The flexibility given to us by the Bayesian framework comes at the expenses of some math being needed to work with a discrete parameter. This is largely due to `stan`s implementation choices wrt discrete random variables. For a more concise changepoint model, written with the PyMC framework one can have a look at the work of my colleague Vincent at [Switching to Sampling in order to Switch](http://koaning.io/switching-to-sampling-in-order-to-switch.html). A drawback of the Bayesian approach is that it is relatively computationally expensive. On my machine (a 2015 retina MacBook pro), it takes about 7 seconds to run the MCMC simulation on four cores[^2]. For comparison, the `changepoint` package has a sub-second run time.
+```{r chunkname4, fig.align='center'}
+ggplot(tabM, aes(x=as.Date(tabM$krLabs), y=tabM$kr)) +
+    geom_line(aes(x = as.Date(tabM$krLabs), y = tabM$kr, col = "Actual")) +
+    geom_line(data=tabM[1:M,], aes(x = as.Date(tabM$krLabs[1:M]), y = linRegPredsE[(1:M),1], col = "Before (Early)")) +
+    geom_line(data=tabM[(M+1):N,], aes(x = as.Date(tabM$krLabs[(M+1):N]), y = linRegPredsL[((M+1):N),1], col = "Prediction (After FTA)")) +
+    theme(legend.position="bottom") +
+    ggtitle("UK Export to South Korea (Monthly)") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    xlab("Date") +
+    ylab("Value (£m)")
+```
 
+# An Intermediate Conclusion and Goods and Services (Pink Book)
 
-[^1]: The excellent [changepoint](https://cran.r-project.org/web/packages/changepoint/index.html) R package implements this likelihood test, as well as its natural extension to the case of multiple change points.
-[^2]: The `transformed parameters` block has a quadratic time complexity. Stan's manual contains a dynamic programming alternative with linear time complexity.
+So we didn't manage to substantiate either the Chancellor's claim, the
+Member of Parliament's claim or the claim made in the report in The
+Guardian.
+
+But it may be that we can if we look at Goods and Services.
+
