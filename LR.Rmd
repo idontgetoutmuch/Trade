@@ -6,6 +6,9 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(rstan)
+library(zoo)
+library(ggplot2)
 ```
 
 # Introduction
@@ -75,11 +78,9 @@ dfQ <- df[startQ:endQ,]
 We can now plot the data.
 
 ```{r chunkname0, fig.align='center'}
-library(zoo)
 tab <- data.frame(kr=as.numeric(dfQ$Exports),
                   krLabs=as.numeric(as.Date(as.yearqtr(dfQ$Title,format='%Y Q%q'))))
 
-library(ggplot2)
 ggplot(tab, aes(x=as.Date(tab$krLabs), y=tab$kr)) + geom_line() +
     theme(legend.position="bottom") +
     ggtitle("UK Export to South Korea (Quarterly)") +
@@ -272,7 +273,7 @@ max_indexes = which(diff(  sign(diff( c(0,histData$counts,0)))) == -2)
 modeData = data.frame(x=1:length(histData$counts),y=histData$counts)
 min_locs = modeData[min_indexes,]
 max_locs = modeData[max_indexes,]
-plot(stockData$y, type="l")
+plot(nodeData$y, type="l")
 points( min_locs, col="red", pch=19, cex=1  )
 points( max_locs, col="green", pch=19, cex=1  )
 ```
@@ -356,5 +357,52 @@ So we didn't manage to substantiate either the Chancellor's claim, the
 Member of Parliament's claim or the claim made in the report in The
 Guardian.
 
-But it may be that we can if we look at Goods and Services.
+But it may be that we can if we look at Goods and Services then we
+might be able to see the numbers resulting in the claims.
 
+```{r}
+pb <- "datasets/pinkbook/current/pb.csv"
+pbcsv <- read.csv(paste(ukstats,"file?uri=",bop,pb,sep="/"),stringsAsFactors=FALSE)
+```
+
+This has a lot more information albeit only annually.
+
+```{r}
+pbns <- grep("Korea", names(pbcsv))
+length(pbns)
+lapply(pbns,function(x) names(pbcsv[x]))
+```
+
+Let's just look at exports.
+
+```{r}
+koreanpb <- pbcsv[grepl("Korea", names(pbcsv))]
+exportspb <- koreanpb[grepl("Exports", names(koreanpb))]
+names(exportspb)
+```
+
+The last column gives exports of Goods and Services so let's draw a
+chart of it.
+
+```{r chunkname5, fig.align='center'}
+pb <- data.frame(pbcsv[grepl("Title", names(pbcsv))],
+                 exportspb[3])
+colnames(pb) <- c("Title", "Exports")
+
+startpbY <- which(grepl("1999",pb$Title))
+endpbY <- which(grepl("2015",pb$Title))
+pbY <- pb[startpbY:endpbY,]
+
+tabpbY <- data.frame(kr=as.numeric(pbY$Exports),
+                     krLabs=as.numeric(pbY$Title))
+
+ggplot(tabpbY, aes(x=tabpbY$krLabs, y=tabpbY$kr)) + geom_line() +
+    theme(legend.position="bottom") +
+    ggtitle("UK Exports to South Korea (Annual)") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    xlab("Date") +
+    ylab("Value (£m)")
+```
+
+No joy here either to any of the claims. Still it's been an
+interesting exercise.
