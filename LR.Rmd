@@ -16,6 +16,7 @@ set.seed(42)
 ```
 
 FIXME
+https://www.theguardian.com/politics/2015/nov/05/british-exports-boomed-under-eu-trade-deals-campaigners
 http://www.bbc.co.uk/news/live/business-38452154
 http://www.huffingtonpost.co.uk/entry/top-economist-slams-entirely-fictional-brexit-report_uk_586b747ee4b0d590e44f482f?
 https://www.theguardian.com/commentisfree/2017/jan/03/brexit-create-4000000-jobs-economist-change-britain?CMP=twt_gu
@@ -232,11 +233,21 @@ model calculations.
 
 [stan](http://mc-stan.org) is a C++ library that comes with a domain specific modelling language very similar to statistical notation. Stan can help us to perform the Bayesian analysis steps, including MCMC inference (and more advanced techniques). The model that I will illustrate in the remainder of this document, is an adaptation of the [Coal Mine Distater](https://pymc-devs.github.io/pymc/tutorial.html) example from [Stan's manual](https://github.com/stan-dev/stan/releases/download/v2.12.0/stan-reference-2.12.0.pdf) Section 12. The full code of this model can be found at [https://gist.github.com/gmodena/0f316232aa2e9f7b6fc76b49f14bfb31](https://gist.github.com/gmodena/0f316232aa2e9f7b6fc76b49f14bfb31).
 
+Here's the model in stan. Sadly I haven't found a good way of divvying
+up `.stan` files in a `.Rmd` file so that it still compiles.
 
-Here's the model in stan.
+~~~~{.CPP include="lr-changepoint.stan"}
+~~~~
+
+The above, although mimicking our mathematical model, has quadratic
+complexity and we can use the trick in the
+[stan manual](http://mc-stan.org/documentation) to make it linear
+albeit with less clarity.
 
 ~~~~{.CPP include="lr-changepoint-ng.stan"}
 ~~~~
+
+Let's run this model with the monthly data.
 
 ```{r}
 NM <- nrow(tabM)
@@ -255,98 +266,51 @@ fitM <- stan(
     refresh = 500,
     seed=42
 )
+```
 
+$`r pi`$ is an expression.
+
+Looking at the results below we see a multi-modal distribution so a
+mean is not of much use.
+
+```{r}
 histData <- hist(extract(fitM)$tau,plot=FALSE,breaks=c(seq(1,length(yM),1)))
 histData$counts
 ```
 
-A stan program is structured in blocks of code. Each block defines: 
-1. the data
-2. the parameters of our model
-3. the model
-4. some transformations of the model output
+We can get a pictorial representation of the maxima so that the
+multi-modality is even clearer.
 
+```{r}
+min_indexes = which(diff(  sign(diff( c(0,histData$counts,0)))) == 2)
+max_indexes = which(diff(  sign(diff( c(0,histData$counts,0)))) == -2)
+modeData = data.frame(x=1:length(histData$counts),y=histData$counts)
+min_locs = modeData[min_indexes,]
+max_locs = modeData[max_indexes,]
+plot(stockData$y, type="l")
+points( min_locs, col="red", pch=19, cex=1  )
+points( max_locs, col="green", pch=19, cex=1  )
+```
+
+My interpretation is that the evidence (data) says there is probably
+no changepoint (a change at the beginning or end is no change) but
+there might be a change at intermediate data points.
+
+We can see
+something strange (maybe a large single export?) happened at index
+$`r max_locs$x[2]`$ which translates to $`r dfMonth$Title[max_locs$x[2]]`$.
+
+The mode at index $`r max_locs$x[3]`$
+which translates to $`r dfMonth$Title[max_locs$x[3]]`$ corresponds
+roughly to the EU / Korea trade agreement.
+
+Let us assume that there really was a material difference in trade at
+this latter point.
 
 ### Data
 
-In the `data` block we describe what the dataset looks like. We will be modelling a time series `D`, stored as an array of `N`, `real` valued, elements.
-We require `D` to have at least one element (`int<lower=1> N`).
-
-```{markdown}
-data {
-    int<lower=1> N;
-    real D[N]; 
-}
-```
-
-
-### Parameters
-
-The `parameter` block describes the sampling space.
-
-In our example, we want to module two Gaussian, each with a `mu` and `sigma`. We constrain `sigma1` and `sigma2` to be positive
-(`{markdown}<lower=0>`), so that we can stick an half-normal prior on them later on.
-```{markdown}
-parameters {
-    real mu1;
-    real mu2;
-
-    real<lower=0> sigma1;
-    real<lower=0> sigma2;
-}
-```
-
-Stan does not allow for sampling from discrete distributions, so we will have to reparametrize our model and marginalise out  $\tau$. Let's proceed one step at a time.
-
-We know that $P(D|\tau,\mu_1,\sigma_1,\mu_2,\sigma_2)=\frac{P(D,\tau,\mu_1,\sigma_1,\mu_2,\sigma_2)}{P(\tau,\mu_1,\sigma_1,\mu_2,\sigma_2)}$. It follows that the joint probability distribution factors as $P(D,\tau,\mu_1,\sigma_1,\mu_2,\sigma_2)=P(D|\tau,\mu_1,\sigma_1,\mu_2,\sigma_2)P(\tau,\mu_1,\sigma_1,\mu_2,\sigma_2)$.
-
-To marginalize out $\tau$ we'll consider a factorization into likelihood and prior as $P(D,\mu_1,\sigma_1,\mu_2,\sigma_2) = P(D|\mu_1,\sigma_1,\mu_2,\sigma_2)P(\mu_1,\sigma_1,\mu_2,\sigma_2)$.
-
-Then we calculate the likelihood $P(D|\mu_1, \sigma_1, \mu_2, \sigma_2) = \sum_{n=1}^N P(\tau, D | \mu_1, \sigma_1, \mu_2, \sigma_2) = \sum_{\tau=1}^N P(\tau) P(D|\tau, \mu_1, \sigma_1, \mu_2, \sigma_2)=\sum_{\tau=1}^N P(\tau) \prod_{n=1}^N P(d_n|\tau, \mu_1, \sigma_1, \mu_2, \sigma_2)$. Where $P(D|\tau, \mu_1, \sigma_1, \mu_2, \sigma_2)$ is a product of Gaussians. 
-
-The `transformed parameters` block is used to process the `parameters` before calculating the posterior. In the block that follows we marginalise out `tau` and calculate `log_p(D | mu1, sd1, mu2, sd2)`. Since `stan` works in logarithmic scale, we'll have to take the sum of the log PDFs (`normal_lpdf`).
-```{markdown}
-// TODO: we can calculate log_p(D | mu1, sd1, mu2, sd2) in 
-// linear time with dynamic programming
-transformed parameters {
-      vector[N] log_p;
-      real mu;
-      real sigma;
-      log_p = rep_vector(-log(N), N);
-      for (tau in 1:N)
-        for (n in 1:N) {
-          mu = n < tau ? mu1 : mu2;
-          sigma = i < tau ? sigma1 : sigma2;
-          log_p[tau] = log_p[tau] + normal_lpdf(D[n] | mu, sigma);
-      }
-}
-```
-
-The functions `normal_lpdf` (and `normal_lpdf` used in the `model` block) allows us to write a model in log scale, as required by Stan.
-
-### Model
- 
-In the `model` block we define the priors on $\mu_1$, $\mu_2$, $\sigma_1$, $\sigma_2$, and the log-likelihood $\sum_{n} = log_p(d_n | \mu_1, \sigma_1, \mu_2, \sigma_2)$. A reasonably good default choice is to use an *half-normal* prior on the scale parameters $\sigma_1, \sigma_2$(a negative scale would be ill defined!). Here I'm using large values for the scale parameter $\sigma$ to denote uncertantinty in the prior beliefs of the distribution.  See [Prior Choice Recommendations](https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations) for an overview and best practices. If we know more about the data, we could use more certain values, that is define more appropriate priors.
-
-
-```{markdown}  
-model {
-    mu1 ~ normal(0, 100);
-    mu2 ~ normal(0, 100);
-    
-    // scale parameters need to be > 0;
-    // we constrained sigma1, sigma2 to be positive
-    // so that stan interprets the following as half-normal priors
-    sigma1 ~ normal(0, 100);
-    sigma2 ~ normal(0, 100);
-    
-    target += log_sum_exp(log_p);
-}
-```
-
-What about the posterior? This is where some of Stan's magic kicks in. At each iteration of MCMC sampling after convergence, $\mu_1, \sigma_1, \mu_2, \sigma_2$ are drawn from $P( \mu_1, \sigma_1, \mu_2, \sigma_2 | D)$, and $P(\tau| \mu_1, \sigma_1, \mu_2, \sigma_2, D)$ is calculated based on the local unnormalized value of `log_p`. As a final step $P(\tau | \mu_1, \sigma_1, \mu_2, \sigma_2, D)$ is normalized by averaging over all draws to obtain $P(\tau|D)$. More details on this step can be found in Stan's manual.
-
 ### Discrete sampling
+
 The `generated quantities` block allows for postprocessing. We can use it to draw a discrete sampling of `tau` at each iteration using the `categorical_rng` probability distribution. At each iteration we draw a value of `tau`, and later on, we'll look at the histogram of draws to determine the most likely changepoint as the most frequent `tau`.
 ```{markdown}
 generated quantities {
@@ -359,70 +323,6 @@ generated quantities {
 ```
 
 The `softmax` transform maps `log_p` to a [K-simplex](https://en.wikipedia.org/wiki/Simplex#The_standard_simplex), which is the parameter type expected by `categorical_rng`. The label will be the index of `log_p`.
-
-
-## Putting it all together
-
-Let's generate some artificial data to test if the models works as expected.
-```{r bayesian-changepoint-data}
-x1 <- rnorm(41, mean=15, sd=1.5)
-x2 <- rnorm(79, mean=17, sd=1.1)
-
-x <- c(x1, x2)
-plot(x, type='l')
-```
-
-If all goes as expected, a changepoint should be identified at $\tau = 42$.
-
-### The R interface for Stan
-
-I'll be using the excellent `rstan` package to fit the model and analyse its output.
-```{r}
-library(rstan)
-rstan::stan_version()
-rstan_options(auto_write = TRUE) # cache a compiled Stan program
-```
-
-The `stan` function wraps the following three steps:
-
-1. Translate a model in Stan code to C++ code
-2. Compile the C++ code to a dynamic shared object (DSO) and load the DSO
-3. Sample given some user-specified data and other settings
-
-The function returns an S4 `stanfit` object. We can use methods such as `print` and `plot` (and `pairs`) to check the fitted results.
-
-```{r}
-fit <- stan(
-  file = "changepoint.stan",  
-  data = list(D = x, N=length(x)),    
-  chains = 4,             
-  warmup = 1000,          
-  iter = 10000,            
-  cores = 4,              
-  refresh = 500          
-  )
-```
-The parameters are self explanatory. Note that the variables naming in the `data` parameter should match the `data` block in the stan code. 
-
-`print` gives an overview of the parameters and the log posterior `log_p`. 
-```{r}
-print(fit)
-```
-Looking at the table, we can see that the `log_p` has a minimum at index 42. We can see this more explicitly if we look at a histogram of
-the discrete values of `tau`
-
-```{r bayesian-changepoint-tau-hist}
-qplot(extract(fit)$tau, geom='histogram', xlab = "tau") 
-print(fit, pars=c("tau"))
-```
-
-We also get the credible inteterval of $\tau$ using the `plot` function with
-```{r bayesian-changepoint-ci}
-plot(fit, pars=c("tau"))
-```
-The plot indicates the expected value of $\tau = 42$. The red bands denote the 80% credible interval; if we were to repeat the experiment several time, we'd expect $\tau$ to lie in the interval $41 \leq \tau \leq 44$ with probability $P=0.80$. The black bands denote the 95% credible interval.
-
-This result is consistent with the dataset $D$.
 
 ## Conclusion
 In this document I showed a simple yet powerful bayesian model for detecting a single changepoint in a timeseries. The advantages over the frequentist approach are twofold. On the one hand, the Bayesian model gives a distribution of changepoints and not a single point estimate. This lets us reason about how credible the model output is. On the other hand, we don't need to hard-code threshold values for a test statistic, but rather embed our prior knowledge about the data to "tune" the model.

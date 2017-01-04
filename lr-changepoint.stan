@@ -1,4 +1,3 @@
-// Built with stan 2.11
 data {
   int<lower=1> N;
   real x[N];
@@ -15,9 +14,6 @@ parameters {
   real<lower=0> sigma2;
 }
 
-// Marginalize out tau and
-// calculate log_p(D | mu1, sd1, mu2, sd2)
-// TODO: we can make this linear via dynamic programming
 transformed parameters {
       vector[N] log_p;
       real mu;
@@ -31,23 +27,17 @@ transformed parameters {
       }
 }
 
-
 model {
     mu1 ~ normal(0, 10);
     mu2 ~ normal(0, 10);
     gamma1 ~ normal(0, 10);
     gamma2 ~ normal(0, 10);
-
-    // scale parameters need to be > 0;
-    // we constrained sigma1, sigma2 to be positive
-    // so that stan interprets the following as half-normal priors
     sigma1 ~ normal(0, 10);
     sigma2 ~ normal(0, 10);
 
     target += log_sum_exp(log_p);
 }
 
-//Draw the discrete parameter tau. This is highly inefficient
 generated quantities {
     int<lower=1,upper=N> tau;
     tau = categorical_rng(softmax(log_p));
