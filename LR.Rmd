@@ -26,11 +26,13 @@ opportunity to use the techniques I believe data scientists in
 (computer) game companies use to determine how much impact a new
 feature has on the game's consumers.
 
-One has to be slightly careful with trade statistics as they can just
-be goods or goods and services. It's amusing to note that when I
-provide software and analyses to US organisations, I am included in
-the services exports from the UK to the US. Let's analyse goods first
-before moving on to goods and services.
+One has to be slightly careful with trade statistics as they come in
+many different forms, e.g., just goods or goods and services
+etc. When I provide software and analyses to US organisations, I am
+included in the services exports from the UK to the US.
+
+Let's analyse goods first before moving on to
+goods and services.
 
 # Getting the Data
 
@@ -77,13 +79,13 @@ dfQ <- df[startQ:endQ,]
 
 We can now plot the data.
 
-```{r chunkname0, fig.align='center'}
+```{r chunkname0, fig.align='center', fig.cap = ""}
 tab <- data.frame(kr=as.numeric(dfQ$Exports),
                   krLabs=as.numeric(as.Date(as.yearqtr(dfQ$Title,format='%Y Q%q'))))
 
 ggplot(tab, aes(x=as.Date(tab$krLabs), y=tab$kr)) + geom_line() +
     theme(legend.position="bottom") +
-    ggtitle("UK Export to South Korea (Quarterly)") +
+    ggtitle("Goods Exports UK / South Korea (Quarterly)") +
     theme(plot.title = element_text(hjust = 0.5)) +
     xlab("Date") +
     ylab("Value (£m)")
@@ -91,7 +93,7 @@ ggplot(tab, aes(x=as.Date(tab$krLabs), y=tab$kr)) + geom_line() +
 
 For good measure let's plot the annual data.
 
-```{r chunkname1, fig.align='center'}
+```{r chunkname1, fig.align='center', fig.cap = ""}
 startY <- grep("^1998$",df$Title)
 endY <- grep("^2015$",df$Title)
 dfYear <- df[startY:endY,]
@@ -101,7 +103,7 @@ tabY <- data.frame(kr=as.numeric(dfYear$Exports),
 
 ggplot(tabY, aes(x=tabY$krLabs, y=tabY$kr)) + geom_line() +
     theme(legend.position="bottom") +
-    ggtitle("UK Export to South Korea (Annual)") +
+    ggtitle("Goods Exports UK / South Korea (Annual)") +
     theme(plot.title = element_text(hjust = 0.5)) +
     xlab("Date") +
     ylab("Value (£m)")
@@ -109,7 +111,7 @@ ggplot(tabY, aes(x=tabY$krLabs, y=tabY$kr)) + geom_line() +
 
 And the monthly data.
 
-```{r chunkname2, fig.align='center'}
+```{r chunkname2, fig.align='center', fig.cap = ""}
 startM <- grep("1998 JAN",df$Title)
 endM <- grep("2016 OCT",df$Title)
 dfMonth <- df[startM:endM,]
@@ -119,7 +121,7 @@ tabM <- data.frame(kr=as.numeric(dfMonth$Exports),
 
 ggplot(tabM, aes(x=as.Date(tabM$krLabs), y=tabM$kr)) + geom_line() +
     theme(legend.position="bottom") +
-    ggtitle("UK Export to South Korea (Monthly)") +
+    ggtitle("Goods Exports UK / South Korea (Monthly)") +
     theme(plot.title = element_text(hjust = 0.5)) +
     xlab("Date") +
     ylab("Value (£m)")
@@ -156,7 +158,7 @@ $$
 \mu_2 &\sim \mathcal{N}(\mu_{\mu_2}, \sigma_{\mu_2}) \\
 \gamma_2 &\sim \mathcal{N}(\mu_{\gamma_2}, \sigma_{\gamma_2}) \\
 \sigma_2 &\sim \mathcal{N}(\mu_{\sigma_2}, \sigma_{\sigma_2}) \\
-y_i &\sim \begin{cases} \mathcal{N}(\mu_1 x_i + \gamma_1, \sigma_1) & \mbox{if } i  \lt \tau \\ \mathcal{N}(\mu_2 x_i + \gamma_2, \sigma_2), & \mbox{if } i  \geq \tau \end{cases}
+y_i &\sim \begin{cases} \mathcal{N}(\mu_1 x_i + \gamma_1, \sigma_1) & \mbox{if } i < \tau \\ \mathcal{N}(\mu_2 x_i + \gamma_2, \sigma_2), & \mbox{if } i  \geq \tau \end{cases}
 \end{aligned}
 $$
 
@@ -267,13 +269,13 @@ histData$counts
 We can get a pictorial representation of the maxima so that the
 multi-modality is even clearer.
 
-```{r chunkname3, fig.align='center'}
+```{r chunkname3, fig.align='center', fig.cap = ""}
 min_indexes = which(diff(  sign(diff( c(0,histData$counts,0)))) == 2)
 max_indexes = which(diff(  sign(diff( c(0,histData$counts,0)))) == -2)
 modeData = data.frame(x=1:length(histData$counts),y=histData$counts)
 min_locs = modeData[min_indexes,]
 max_locs = modeData[max_indexes,]
-plot(nodeData$y, type="l")
+plot(modeData$y, type="l")
 points( min_locs, col="red", pch=19, cex=1  )
 points( max_locs, col="green", pch=19, cex=1  )
 ```
@@ -339,13 +341,13 @@ linRegPredsE <- data.matrix(XM) %*% estCovParamsE
 linRegPredsL <- data.matrix(XM) %*% estCovParamsL
 ```
 
-```{r chunkname4, fig.align='center'}
+```{r chunkname4, fig.align='center', fig.cap = ""}
 ggplot(tabM, aes(x=as.Date(tabM$krLabs), y=tabM$kr)) +
     geom_line(aes(x = as.Date(tabM$krLabs), y = tabM$kr, col = "Actual")) +
-    geom_line(data=tabM[1:M,], aes(x = as.Date(tabM$krLabs[1:M]), y = linRegPredsE[(1:M),1], col = "Before (Early)")) +
-    geom_line(data=tabM[(M+1):N,], aes(x = as.Date(tabM$krLabs[(M+1):N]), y = linRegPredsL[((M+1):N),1], col = "Prediction (After FTA)")) +
+    geom_line(data=tabM[1:M,], aes(x = as.Date(tabM$krLabs[1:M]), y = linRegPredsE[(1:M),1], col = "Fit (Before FTA)")) +
+    geom_line(data=tabM[(M+1):N,], aes(x = as.Date(tabM$krLabs[(M+1):N]), y = linRegPredsL[((M+1):N),1], col = "Fit (After FTA)")) +
     theme(legend.position="bottom") +
-    ggtitle("UK Export to South Korea (Monthly)") +
+    ggtitle("Goods Exports UK / South Korea (Monthly)") +
     theme(plot.title = element_text(hjust = 0.5)) +
     xlab("Date") +
     ylab("Value (£m)")
@@ -353,9 +355,8 @@ ggplot(tabM, aes(x=as.Date(tabM$krLabs), y=tabM$kr)) +
 
 # An Intermediate Conclusion and Goods and Services (Pink Book)
 
-So we didn't manage to substantiate either the Chancellor's claim, the
-Member of Parliament's claim or the claim made in the report in The
-Guardian.
+So we didn't manage to substantiate either the Chancellor's claim or the
+Member of Parliament's claim.
 
 But it may be that we can if we look at Goods and Services then we
 might be able to see the numbers resulting in the claims.
@@ -384,7 +385,7 @@ names(exportspb)
 The last column gives exports of Goods and Services so let's draw a
 chart of it.
 
-```{r chunkname5, fig.align='center'}
+```{r chunkname5, fig.align='center', fig.cap = ""}
 pb <- data.frame(pbcsv[grepl("Title", names(pbcsv))],
                  exportspb[3])
 colnames(pb) <- c("Title", "Exports")
@@ -398,7 +399,7 @@ tabpbY <- data.frame(kr=as.numeric(pbY$Exports),
 
 ggplot(tabpbY, aes(x=tabpbY$krLabs, y=tabpbY$kr)) + geom_line() +
     theme(legend.position="bottom") +
-    ggtitle("UK Exports to South Korea (Annual)") +
+    ggtitle("Goods and Services Exports UK / South Korea (Annual)") +
     theme(plot.title = element_text(hjust = 0.5)) +
     xlab("Date") +
     ylab("Value (£m)")
